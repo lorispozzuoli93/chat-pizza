@@ -27,3 +27,17 @@ export interface Citation {
     text_quote: string;
     bounding_regions: HighlightRect[];
 }
+
+export interface DocumentItem {
+    id: string;
+    filename: string;
+    uploaded_at?: string;
+    download_url?: string;
+}
+
+export interface UploadProgress {
+    filename: string;
+    progress: number;
+    status: 'pending' | 'uploading' | 'done' | 'error';
+    error?: string;
+}

@@ -5,11 +5,9 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import { ChatStream } from './components/Chat/ChatStream';
 import { Login } from './components/Auth/Login';
-import { PdfViewer } from './components/PdViewer/PdfViewer';
+import { DocumentManager } from './components/Documents/DocumentManager';
 
 export default function App() {
-  const samplePdf = '/sample.pdf';
-  const showPdf = true;
 
   return (
     <Container maxWidth="lg" sx={{ pt: 3 }}>
@@ -30,19 +28,13 @@ export default function App() {
 
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1">Autenticazione</Typography>
+            <Typography variant="subtitle1">Accesso</Typography>
             <Login />
           </Paper>
 
           <Paper sx={{ p: 2 }}>
-            <Typography variant="subtitle1">PDF Viewer</Typography>
-            {showPdf ? (
-              <Box sx={{ mt: 1 }}>
-                <PdfViewer fileUrl={samplePdf} />
-              </Box>
-            ) : (
-              <Typography variant="body2">PDF viewer disabilitato</Typography>
-            )}
+            <Typography variant="subtitle1">Documenti</Typography>
+            <DocumentManager />
           </Paper>
         </Grid>
       </Grid>
