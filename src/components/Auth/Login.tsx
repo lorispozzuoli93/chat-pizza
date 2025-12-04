@@ -15,7 +15,7 @@ export const Login: React.FC = () => {
 
     const handleLogin = async () => {
         setError(null);
-        if (!userId.trim()) return setError('Inserisci nome utente');
+        if (!userId.trim()) return setError('Inserisci user id');
         if (!VALID_RE.test(userId.trim())) return setError('Formato non valido (solo lettere, numeri, - e _)');
 
         setLoading(true);
@@ -56,7 +56,7 @@ export const Login: React.FC = () => {
         <Box display="flex" flexDirection="column" gap={1}>
             {error && <Alert severity="error">{error}</Alert>}
             <TextField
-                label="Nome utente"
+                label="User id"
                 placeholder="es: marco_01"
                 size="small"
                 value={userId}
