@@ -54,3 +54,14 @@ export async function uploadFiles(
 
     return results;
 }
+
+export async function getDocumentDetail(id: string) {
+    const res = await fetch(`${BASE}/api/documents/${id}`, { credentials: 'include' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    return await res.json();
+}
+
+// returns the direct file endpoint (we'll fetch inside PdfViewer with credentials)
+export function getDocumentFileUrl(id: string) {
+    return `${BASE}/api/documents/${id}/file`;
+}
