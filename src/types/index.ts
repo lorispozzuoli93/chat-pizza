@@ -10,10 +10,23 @@ export interface ChatMessage {
 
 export type NDJSONEventType = 'token' | 'content' | 'done' | 'meta' | 'error';
 
-export interface NDJSONEvent {
-    type: NDJSONEventType;
-    payload?: any;
+export type Role = 'user' | 'assistant' | 'system';
+
+export interface ChatMessage {
+    id: string;
+    role: Role;
+    content: string;
+    createdAt: string;
+    partial?: boolean;
+    meta?: any;
 }
+
+export type NDJSONEvent =
+    | { type: 'content' | 'token'; payload: string | { delta?: string;[k: string]: any } }
+    | { type: 'citations'; references: any[] }
+    | { type: 'meta'; payload: any }
+    | { type: 'done' }
+    | { type: string; payload?: any };
 
 export interface HighlightRect {
     page_number: number;

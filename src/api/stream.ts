@@ -1,3 +1,4 @@
+// src/api/stream.ts
 import type { NDJSONEvent } from '../types';
 
 export async function fetchNdjsonStream(
@@ -7,48 +8,72 @@ export async function fetchNdjsonStream(
     onError?: (err: any) => void,
     signal?: AbortSignal
 ): Promise<void> {
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal,
-    });
-
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    if (!res.body) throw new Error('No streaming body from server');
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
     try {
+        const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+        const fullUrl = url.startsWith('http') ? url : `${BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+
+        const res = await fetch(fullUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body ?? {}),
+            signal,
+        });
+
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            let parsed;
+            try { parsed = JSON.parse(text); } catch { }
+            let message = text || `${res.status} ${res.statusText}`;
+            if (parsed) {
+                if (Array.isArray(parsed.detail)) {
+                    message = parsed.detail.map((d: any) => {
+                        const loc = Array.isArray(d.loc) ? d.loc.join('.') : d.loc;
+                        return `${loc}: ${d.msg}`;
+                    }).join('; ');
+                } else if (parsed.detail) {
+                    message = typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail);
+                } else if (parsed.message) {
+                    message = parsed.message;
+                }
+            }
+            throw new Error(`HTTP ${res.status} ${res.statusText}: ${message}`);
+        }
+
+        if (!res.body) throw new Error('Streaming non supportato dal server (res.body è null).');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
 
-            let index;
-            while ((index = buffer.indexOf('\n')) >= 0) {
-                const line = buffer.slice(0, index).trim();
-                buffer = buffer.slice(index + 1);
+            const parts = buffer.split(/\r?\n/);
+            buffer = parts.pop() ?? '';
+
+            for (const lineRaw of parts) {
+                const line = lineRaw.trim();
                 if (!line) continue;
+                let jsonText = line;
+                if (jsonText.startsWith('data:')) jsonText = jsonText.replace(/^data:\s*/, '');
                 try {
-                    const obj = JSON.parse(line) as NDJSONEvent;
-                    onEvent(obj);
+                    const parsed = JSON.parse(jsonText);
+                    // normalized event: if server uses { type: 'content', delta: '...' } or similar
+                    onEvent(parsed as NDJSONEvent);
                 } catch (err) {
-                    console.warn('failed to parse ndjson line', line, err);
+                    console.warn('NDJSON parse failed', jsonText, err);
                 }
             }
         }
 
-        if (buffer.trim()) {
-            const obj = JSON.parse(buffer.trim()) as NDJSONEvent;
-            onEvent(obj);
-        }
+        // end of stream — but backend may already send a 'citations' final chunk
+        onEvent({ type: 'done' });
     } catch (err) {
-        onError?.(err);
+        if (onError) onError(err);
+        else console.error('fetchNdjsonStream error', err);
         throw err;
-    } finally {
-        reader.releaseLock();
     }
 }

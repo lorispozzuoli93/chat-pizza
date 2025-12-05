@@ -2,16 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
     Box, Button, LinearProgress, Typography, List, ListItem, ListItemText,
-    IconButton, Alert, Stack, Dialog, DialogContent, Grid, Paper
+    Alert, Stack, Grid, Paper
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { setDocuments, setLoading, setError, addDocument } from '../../store/slices/documentsSlice';
 import { getDocuments, uploadFiles } from '../../api/documents';
 import type { UploadProgress, DocumentItem } from '../../types';
 import { PdfThumbnail } from './PdfThumbnail';
-import { PdfViewer } from '../PdViewer/PdfViewer';
 
 export const DocumentManager: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -20,11 +18,11 @@ export const DocumentManager: React.FC = () => {
 
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [progressList, setProgressList] = useState<UploadProgress[]>([]);
-    const [viewDoc, setViewDoc] = useState<DocumentItem | null>(null);
 
     // map file -> objectURL for preview
     const [previews, setPreviews] = useState<Record<string, string>>({});
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { fetchList(); }, []);
 
     useEffect(() => {
@@ -38,10 +36,6 @@ export const DocumentManager: React.FC = () => {
         if (Object.keys(newPreviews).length) {
             setPreviews((p) => ({ ...p, ...newPreviews }));
         }
-        // cleanup when files removed/unmounted
-        return () => {
-            // do NOT revoke here — revoke when file removed or component unmount
-        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedFiles]);
 
@@ -100,26 +94,35 @@ export const DocumentManager: React.FC = () => {
             return;
         }
 
-        // use uploadFiles with per-file progress callback
+        // partita di upload sequenziale, uploadFiles fornisce onProgress per file
         const results = await uploadFiles(selectedFiles, (filename, percent) => {
             setProgressList(prev => prev.map(p => p.filename === filename ? { ...p, progress: percent, status: percent < 100 ? 'uploading' : p.status } : p));
         });
 
+        // costruisci nuovi array per mantenere i file falliti
+        const successfulFilenames = new Set<string>();
         for (const r of results) {
             if (r.ok) {
+                successfulFilenames.add(r.filename);
                 setProgressList(prev => prev.map(p => p.filename === r.filename ? { ...p, progress: 100, status: 'done' } : p));
                 const doc: DocumentItem = Array.isArray(r.data) ? (r.data[0] ?? { id: String(Date.now()), filename: r.filename }) : (r.data ?? { id: String(Date.now()), filename: r.filename });
                 dispatch(addDocument(doc));
-                // revoke preview for uploaded file
+                // revoke preview immediately for success
                 const url = previews[r.filename];
                 if (url) { URL.revokeObjectURL(url); setPreviews((p) => { const copy = { ...p }; delete copy[r.filename]; return copy; }); }
             } else {
-                const msg = (r.error?.response?.data?.detail ?? r.error?.message) ?? 'Errore upload';
-                setProgressList(prev => prev.map(p => p.filename === r.filename ? { ...p, status: 'error', error: String(msg) } : p));
+                setProgressList(prev => prev.map(p => p.filename === r.filename ? { ...p, status: 'error', error: 'Sono consentiti solo i PDF: attention_is_all_you_need.pdf, bitcoin.pdf, unix.pdf', progress: 0 } : p));
             }
         }
 
-        setSelectedFiles([]);
+        // mantieni solo i file che NON sono andati a buon fine
+        const failedFiles = selectedFiles.filter(f => !successfulFilenames.has(f.name));
+        setSelectedFiles(failedFiles);
+
+        // opzionale: se vuoi rimuovere dalla progressList i job completati, puoi filtrarli:
+        setProgressList(prev => prev.filter(p => !successfulFilenames.has(p.filename)));
+
+        // refresh lista dei documenti
         await fetchList();
     };
 
@@ -186,22 +189,12 @@ export const DocumentManager: React.FC = () => {
                 <Typography variant="h6">Documenti caricati</Typography>
                 <List>
                     {docs.map(d => (
-                        <ListItem key={d.id} secondaryAction={
-                            <>
-                                <IconButton edge="end" onClick={() => setViewDoc(d)} aria-label="view"><VisibilityIcon /></IconButton>
-                            </>
-                        }>
+                        <ListItem key={d.id}>
                             <ListItemText primary={d.filename} secondary={d.uploaded_at ?? ''} />
                         </ListItem>
                     ))}
                 </List>
             </Box>
-
-            <Dialog fullWidth maxWidth="md" open={!!viewDoc} onClose={() => setViewDoc(null)}>
-                <DialogContent sx={{ height: '80vh' }}>
-                    {viewDoc && <PdfViewer fileUrl={viewDoc.download_url ?? `/api/documents/${viewDoc.id}/pdf`} />}
-                </DialogContent>
-            </Dialog>
         </Box>
     );
 };

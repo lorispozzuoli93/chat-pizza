@@ -47,7 +47,7 @@ export async function uploadFiles(
                 onProgress?.(file.name, pct);
             });
             results.push({ ok: true, filename: file.name, data });
-        } catch (err: any) {
+        } catch (err) {
             results.push({ ok: false, filename: file.name, error: err });
         }
     }
