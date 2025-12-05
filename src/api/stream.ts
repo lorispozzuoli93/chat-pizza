@@ -1,4 +1,4 @@
-// src/api/stream.ts
+import { BASE } from '../utils/constants';
 import type { NDJSONEvent } from '../types';
 
 export async function fetchNdjsonStream(
@@ -9,7 +9,6 @@ export async function fetchNdjsonStream(
     signal?: AbortSignal
 ): Promise<void> {
     try {
-        const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
         const fullUrl = url.startsWith('http') ? url : `${BASE}${url.startsWith('/') ? '' : '/'}${url}`;
 
         const res = await fetch(fullUrl, {
@@ -73,7 +72,6 @@ export async function fetchNdjsonStream(
         onEvent({ type: 'done' });
     } catch (err) {
         if (onError) onError(err);
-        else console.error('fetchNdjsonStream error', err);
         throw err;
     }
 }

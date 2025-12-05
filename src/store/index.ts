@@ -3,12 +3,14 @@ import { type TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux
 import authReducer from './slices/authSlice';
 import chatReducer from './slices/chatSlice';
 import documentsReducer from './slices/documentsSlice';
+import chatsReducer from './slices/chatsSlice';
 
 export const store = configureStore({
     reducer: {
         auth: authReducer,
         chat: chatReducer,
         documents: documentsReducer,
+        chats: chatsReducer,
     },
 });
 

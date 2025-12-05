@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { addMessage, appendToMessage, updateMessage } from '../../store/slices/chatSlice';
+import { addMessage, appendToMessage, updateMessage, clear } from '../../store/slices/chatSlice';
 import { fetchNdjsonStream } from '../../api/stream';
+import { getChatHistory, getChatById } from '../../api/chat';
 import type { NDJSONEvent } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import Box from '@mui/material/Box';
@@ -11,11 +12,11 @@ import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import { MessageBubble } from './MessageBubble';
-import { getChatHistory } from '../../api/chat';
 
 export const ChatStream: React.FC = () => {
     const dispatch = useAppDispatch();
     const messages = useAppSelector(s => s.chat.messages);
+    const selectedChatId = useAppSelector(s => s.chats?.selectedId);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export const ChatStream: React.FC = () => {
                     }
                 },
                 (err) => {
-                    console.error('Stream error', err);
+                    // on stream error
                     dispatch(updateMessage({ id: assistantId, patch: { partial: false } }));
                     setError('Errore nello stream: ' + (err?.message ?? String(err)));
                     setLoading(false);
@@ -82,7 +83,6 @@ export const ChatStream: React.FC = () => {
                 ac.signal
             );
         } catch (err: any) {
-            console.error('fetchNdjsonStream thrown', err);
             setError(err?.message ?? 'Errore rete');
             setLoading(false);
             dispatch(updateMessage({ id: assistantId, patch: { partial: false } }));
@@ -91,15 +91,15 @@ export const ChatStream: React.FC = () => {
         }
     };
 
+    // Carica la cronologia di chat overall al mount (come prima)
     useEffect(() => {
         (async () => {
             try {
                 const hist = await getChatHistory();
                 if (!Array.isArray(hist)) return;
-                // opzionale: se vuoi evitare duplicazioni pulisci lo store (se hai un'azione clear)
-                // dispatch(clear());
+                // puliamo i messaggi correnti prima di popolare (evita duplicati)
+                dispatch(clear());
 
-                // mappiamo i messaggi ricevuti dal backend in ChatMessage
                 hist.forEach((m: any) => {
                     dispatch(addMessage({
                         id: m.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -116,6 +116,40 @@ export const ChatStream: React.FC = () => {
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Quando cambia la chat selezionata nella ChatList, carica i messaggi di quella chat
+    useEffect(() => {
+        if (!selectedChatId) return;
+
+        (async () => {
+            try {
+                // aborta eventuale stream in corso e pulisci messaggi correnti
+                abortRef.current?.abort();
+                setLoading(true);
+                setError(null);
+                dispatch(clear());
+
+                const payload = await getChatById(selectedChatId);
+                const messagesArr = Array.isArray(payload) ? payload : (payload.messages ?? []);
+                messagesArr.forEach((m: any) => {
+                    dispatch(addMessage({
+                        id: m.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        role: m.role ?? 'assistant',
+                        content: m.content ?? '',
+                        createdAt: m.created_at ?? new Date().toISOString(),
+                        partial: false,
+                        meta: m.meta ?? null
+                    }));
+                });
+            } catch (e: any) {
+                console.error('getChatById error', e);
+                setError('Errore caricamento conversazione: ' + (e?.message ?? String(e)));
+            } finally {
+                setLoading(false);
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedChatId]);
 
     return (
         <Box>
@@ -143,3 +177,5 @@ export const ChatStream: React.FC = () => {
         </Box>
     );
 };
+
+export default ChatStream;

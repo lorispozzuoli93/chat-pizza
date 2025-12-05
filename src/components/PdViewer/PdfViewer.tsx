@@ -55,7 +55,6 @@ export const PdfViewer: React.FC<Props> = ({ fileUrl, fileId, page = 1, width, h
                 if (!cancelled) setBlobUrl(objectUrl);
                 onLoad?.();
             } catch (err: any) {
-                console.error('PdfViewer load error', err);
                 setError(err?.message ?? 'Errore caricamento PDF');
             } finally {
                 if (!cancelled) setLoading(false);

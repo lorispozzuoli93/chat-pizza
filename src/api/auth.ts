@@ -1,7 +1,7 @@
+import { BASE } from "../utils/constants";
+
 export interface LoginRequest { user_id: string; }
 export interface LoginResponse { success: boolean; user_id?: string; message?: string; }
-
-const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
 export async function loginApi(user_id: string): Promise<LoginResponse> {
     const url = `${BASE}/api/auth/login`;

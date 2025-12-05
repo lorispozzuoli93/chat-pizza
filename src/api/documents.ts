@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { DocumentItem } from '../types';
-
-const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+import { BASE } from '../utils/constants';
 
 export async function getDocuments(): Promise<DocumentItem[]> {
     const url = `${BASE}/api/documents/`;
