@@ -82,8 +82,15 @@ export const ChatStream: React.FC = () => {
                 },
                 ac.signal
             );
-        } catch (err: any) {
-            setError(err?.message ?? 'Errore rete');
+        } catch (err: unknown) { // CAMBIATO da 'any' a 'unknown'
+            let errorMessage = 'Errore rete';
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            }
+            else if (typeof err === 'string') {
+                errorMessage = err;
+            }
+            setError(errorMessage);
             setLoading(false);
             dispatch(updateMessage({ id: assistantId, patch: { partial: false } }));
         } finally {
@@ -141,9 +148,15 @@ export const ChatStream: React.FC = () => {
                         meta: m.meta ?? null
                     }));
                 });
-            } catch (e: any) {
-                console.error('getChatById error', e);
-                setError('Errore caricamento conversazione: ' + (e?.message ?? String(e)));
+            } catch (e: unknown) {
+                let errorMessage: string;
+                if (e instanceof Error) {
+                    errorMessage = e.message;
+                }
+                else {
+                    errorMessage = String(e);
+                }
+                setError('Errore caricamento conversazione: ' + errorMessage);
             } finally {
                 setLoading(false);
             }

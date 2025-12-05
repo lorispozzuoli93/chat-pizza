@@ -20,8 +20,12 @@ export const ChatList: React.FC = () => {
                 const res = await getChatList();
                 // mappa la risposta se serve (assumiamo array di chat metadata)
                 dispatch(setList(res));
-            } catch (e: any) {
-                dispatch(setError(e?.message ?? 'Errore caricamento chat'));
+            }
+            catch (e: unknown) {
+                let errorMessage = 'Errore caricamento chat';
+                if (e instanceof Error) errorMessage = e.message;
+                else if (typeof e === 'string') errorMessage = e;
+                dispatch(setError(errorMessage));
             } finally {
                 dispatch(setLoading(false));
             }

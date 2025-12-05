@@ -21,8 +21,7 @@ export async function fetchNdjsonStream(
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
-            let parsed;
-            try { parsed = JSON.parse(text); } catch { }
+            const parsed = JSON.parse(text);
             let message = text || `${res.status} ${res.statusText}`;
             if (parsed) {
                 if (Array.isArray(parsed.detail)) {

@@ -54,8 +54,17 @@ export const PdfViewer: React.FC<Props> = ({ fileUrl, fileId, page = 1, width, h
                 objectUrl = URL.createObjectURL(blob);
                 if (!cancelled) setBlobUrl(objectUrl);
                 onLoad?.();
-            } catch (err: any) {
-                setError(err?.message ?? 'Errore caricamento PDF');
+            } catch (err: unknown) {
+                let errorMessage: string;
+                if (err instanceof Error) {
+                    errorMessage = err.message;
+                }
+                else {
+                    errorMessage = String(err);
+                }
+                const finalMessage = errorMessage || 'Errore caricamento PDF';
+
+                setError(finalMessage);
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -68,6 +77,7 @@ export const PdfViewer: React.FC<Props> = ({ fileUrl, fileId, page = 1, width, h
             if (objectUrl) URL.revokeObjectURL(objectUrl);
             setBlobUrl(null);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fileUrl, fileId]);
 
     if (loading) {
@@ -113,7 +123,7 @@ export const PdfViewer: React.FC<Props> = ({ fileUrl, fileId, page = 1, width, h
 export default PdfViewer;
 
 /* --- Overlay component --- */
-function HighlightOverlay({ highlight, pageNumber, containerWidth }: { highlight: Highlight; pageNumber: number; containerWidth: number }) {
+function HighlightOverlay({ highlight, containerWidth }: { highlight: Highlight; pageNumber: number; containerWidth: number }) {
     // We don't have direct page height here, so we assume typical PDF aspect ratio.
     // A better approach: render Page with onLoadSuccess and capture viewport.width/height then compute scaling.
     // For simplicity we position using containerWidth and assume viewportScale = containerWidth / pdfViewport.width

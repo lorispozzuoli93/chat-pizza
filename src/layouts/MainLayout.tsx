@@ -22,9 +22,14 @@ export default function MainLayout() {
                     </Box>
 
                     {auth.isAuthenticated && (
-                        <IconButton color="error" onClick={() => dispatch(logout())}>
-                            <LogoutIcon />
-                        </IconButton>
+                        <Box display="flex" gap={1} alignItems='center'>
+                            <Typography variant="body2">Loggato come <strong>{auth.userId}</strong></Typography>
+                            <Box display="flex" gap={1}>
+                                <IconButton color="error" onClick={() => dispatch(logout())}>
+                                    <LogoutIcon />
+                                </IconButton>
+                            </Box>
+                        </Box>
                     )}
                 </Box>
 

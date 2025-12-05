@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { TextField, Button, Box, Alert, CircularProgress, Typography } from '@mui/material';
+import { TextField, Button, Box, Alert, CircularProgress } from '@mui/material';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { loginSuccess, logout } from '../../store/slices/authSlice';
+import { loginSuccess } from '../../store/slices/authSlice';
 import { loginApi } from '../../api/auth';
 import { useNavigate } from 'react-router-dom';
 
 export const Login: React.FC = () => {
     const dispatch = useAppDispatch();
-    const userIdState = useAppSelector(s => s.auth.userId);
     const isAuthenticated = useAppSelector(s => s.auth.isAuthenticated);
     const [userId, setUserId] = useState('');
     const [loading, setLoading] = useState(false);
@@ -50,25 +49,6 @@ export const Login: React.FC = () => {
             setLoading(false);
         }
     };
-
-    const handleLogout = async () => {
-        setLoading(true);
-        dispatch(logout());
-        setLoading(false);
-    };
-
-    if (userIdState) {
-        // utente già loggato — mostra button logout
-        return (
-            <Box display="flex" flexDirection="column" gap={1}>
-                <Typography variant="body2">Loggato come <strong>{userIdState}</strong></Typography>
-                <Box display="flex" gap={1}>
-                    <Button onClick={handleLogout} disabled={loading} variant="outlined">Logout</Button>
-                    {loading && <CircularProgress size={20} />}
-                </Box>
-            </Box>
-        );
-    }
 
     return (
         <Box display="flex" flexDirection="column" gap={1}>

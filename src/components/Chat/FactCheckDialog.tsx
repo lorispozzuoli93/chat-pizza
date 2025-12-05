@@ -28,7 +28,7 @@ export const FactCheckDialog: React.FC<{ open: boolean; onClose: () => void; cit
             try {
                 const meta = await getDocumentDetail(selected.document_id);
                 setDocMeta(meta);
-            } catch (err: any) {
+            } catch () {
                 setDocMeta(null);
             }
         })();

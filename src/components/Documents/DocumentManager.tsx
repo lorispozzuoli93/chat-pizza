@@ -51,8 +51,15 @@ export const DocumentManager: React.FC = () => {
         try {
             const list = await getDocuments();
             dispatch(setDocuments(list));
-        } catch (e: any) {
-            dispatch(setError(e?.message ?? 'Errore caricamento documenti'));
+        } catch (e: unknown) {
+            let errorMessage: string;
+            if (e instanceof Error) {
+                errorMessage = e.message;
+            }
+            else {
+                errorMessage = 'Errore caricamento documenti';
+            }
+            dispatch(setError(errorMessage));
         } finally {
             dispatch(setLoading(false));
         }
