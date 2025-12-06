@@ -8,7 +8,6 @@ import type { PdfPageType } from '../../types';
 // set worker (usa CDN oppure copia locale se preferisci)
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
-
 type Props = {
     documentId: string;
     pageNumber?: number;
