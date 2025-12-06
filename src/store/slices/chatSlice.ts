@@ -16,11 +16,16 @@ const chatSlice = createSlice({
         },
         updateMessage(state, action: PayloadAction<{ id: string; patch: Partial<ChatMessage> }>) {
             const { id, patch } = action.payload;
-            state.messages = state.messages.map(m => m.id === id ? { ...m, ...patch } : m);
+            state.messages = state.messages.map(m => (m.id === id ? { ...m, ...patch } : m));
         },
         appendToMessage(state, action: PayloadAction<{ id: string; delta: string }>) {
             const { id, delta } = action.payload;
-            state.messages = state.messages.map(m => m.id === id ? { ...m, content: (m.content ?? '') + delta, partial: true } : m);
+            state.messages = state.messages.map(m =>
+                m.id === id ? { ...m, content: (m.content ?? '') + delta, partial: true } : m
+            );
+        },
+        setMessages(state, action: PayloadAction<ChatMessage[]>) {
+            state.messages = action.payload ?? [];
         },
         clear(state) {
             state.messages = [];
@@ -28,5 +33,5 @@ const chatSlice = createSlice({
     },
 });
 
-export const { addMessage, updateMessage, appendToMessage, clear } = chatSlice.actions;
+export const { addMessage, updateMessage, appendToMessage, setMessages, clear } = chatSlice.actions;
 export default chatSlice.reducer;

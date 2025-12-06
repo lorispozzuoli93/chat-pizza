@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { addMessage, appendToMessage, updateMessage, clear } from '../../store/slices/chatSlice';
+import { addMessage, appendToMessage, updateMessage, clear, setMessages } from '../../store/slices/chatSlice';
 import { fetchNdjsonStream } from '../../api/stream';
 import { getChatHistory, getChatById } from '../../api/chat';
 import type { NDJSONEvent } from '../../types';
@@ -21,6 +21,9 @@ export const ChatStream: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const abortRef = useRef<AbortController | null>(null);
+
+    // ref per il container dei messaggi (scroll)
+    const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
     const handleSend = async () => {
         setError(null);
@@ -53,13 +56,12 @@ export const ChatStream: React.FC = () => {
         try {
             await fetchNdjsonStream(
                 '/api/chat/',
-                { query: prompt }, // <- API expects "query"
+                { query: prompt },
                 (evt: NDJSONEvent) => {
                     if (evt.type === 'content' || evt.type === 'token') {
                         const delta = typeof (evt as any).payload === 'string' ? (evt as any).payload : (evt as any).payload?.delta ?? '';
                         if (delta) dispatch(appendToMessage({ id: assistantId, delta }));
                     } else if (evt.type === 'citations') {
-                        // final chunk with references
                         const refs = (evt as any).references ?? [];
                         dispatch(updateMessage({ id: assistantId, patch: { partial: false, meta: { citations: refs } } }));
                         setLoading(false);
@@ -69,25 +71,22 @@ export const ChatStream: React.FC = () => {
                         dispatch(updateMessage({ id: assistantId, patch: { partial: false } }));
                         setLoading(false);
                     } else {
-                        // fallback: append string payload if present
                         const maybe = (evt as any).payload;
                         if (typeof maybe === 'string') dispatch(appendToMessage({ id: assistantId, delta: maybe }));
                     }
                 },
                 (err) => {
-                    // on stream error
                     dispatch(updateMessage({ id: assistantId, patch: { partial: false } }));
                     setError('Errore nello stream: ' + (err?.message ?? String(err)));
                     setLoading(false);
                 },
                 ac.signal
             );
-        } catch (err: unknown) { // CAMBIATO da 'any' a 'unknown'
+        } catch (err: unknown) {
             let errorMessage = 'Errore rete';
             if (err instanceof Error) {
                 errorMessage = err.message;
-            }
-            else if (typeof err === 'string') {
+            } else if (typeof err === 'string') {
                 errorMessage = err;
             }
             setError(errorMessage);
@@ -98,15 +97,13 @@ export const ChatStream: React.FC = () => {
         }
     };
 
-    // Carica la cronologia di chat overall al mount (come prima)
+    // Carica la cronologia overall all'mount
     useEffect(() => {
         (async () => {
             try {
                 const hist = await getChatHistory();
                 if (!Array.isArray(hist)) return;
-                // puliamo i messaggi correnti prima di popolare (evita duplicati)
                 dispatch(clear());
-
                 hist.forEach((m: any) => {
                     dispatch(addMessage({
                         id: m.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -124,39 +121,36 @@ export const ChatStream: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Quando cambia la chat selezionata nella ChatList, carica i messaggi di quella chat
+    // Caricamento delle singole chat (quando cambia selectedChatId)
     useEffect(() => {
         if (!selectedChatId) return;
 
         (async () => {
             try {
-                // aborta eventuale stream in corso e pulisci messaggi correnti
+                // abort eventuale stream in corso ma NON pulire subito la UI — mostra overlay invece
                 abortRef.current?.abort();
                 setLoading(true);
                 setError(null);
-                dispatch(clear());
 
                 const payload = await getChatById(selectedChatId);
                 const messagesArr = Array.isArray(payload) ? payload : (payload.messages ?? []);
-                messagesArr.forEach((m: any) => {
-                    dispatch(addMessage({
-                        id: m.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                        role: m.role ?? 'assistant',
-                        content: m.content ?? '',
-                        createdAt: m.created_at ?? new Date().toISOString(),
-                        partial: false,
-                        meta: m.meta ?? null
-                    }));
-                });
+                const mapped = messagesArr.map((m: any) => ({
+                    id: m.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    role: m.role ?? 'assistant',
+                    content: m.content ?? '',
+                    createdAt: m.created_at ?? new Date().toISOString(),
+                    partial: false,
+                    meta: m.meta ?? null
+                }));
+
+                // replace messages in one shot (evita flicker)
+                dispatch(setMessages(mapped));
             } catch (e: unknown) {
                 let errorMessage: string;
-                if (e instanceof Error) {
-                    errorMessage = e.message;
-                }
-                else {
-                    errorMessage = String(e);
-                }
+                if (e instanceof Error) errorMessage = e.message;
+                else errorMessage = String(e);
                 setError('Errore caricamento conversazione: ' + errorMessage);
+                // non pulire i messaggi attuali per non creare vuoto improvviso
             } finally {
                 setLoading(false);
             }
@@ -164,13 +158,48 @@ export const ChatStream: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedChatId]);
 
+    // scroll to bottom quando i messaggi cambiano e non siamo in loading
+    useEffect(() => {
+        if (loading) return;
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        // piccolo timeout per assicurarsi che il DOM sia aggiornato
+        setTimeout(() => {
+            el.scrollTop = el.scrollHeight;
+        }, 50);
+    }, [messages, loading]);
+
     return (
         <Box>
-            <Box sx={{ maxHeight: 360, overflow: 'auto', mb: 1, p: 1 }}>
-                <Stack spacing={1}>
-                    {messages.map(m => <MessageBubble key={m.id} message={m} />)}
-                    {loading && <Box sx={{ display: 'flex', justifyContent: 'center' }}><CircularProgress size={24} /></Box>}
-                </Stack>
+            <Box
+                sx={{ position: 'relative' }}
+            >
+                <Box
+                    ref={messagesContainerRef}
+                    sx={{ maxHeight: 360, overflow: 'auto', mb: 1, p: 1 }}
+                >
+                    <Stack spacing={1}>
+                        {messages.map(m => <MessageBubble key={m.id} message={m} />)}
+                        {/* se vuoi puoi lasciare un placeholder finale */}
+                    </Stack>
+                </Box>
+
+                {/* Loading overlay: appare sopra la lista messaggi mentre carichiamo la chat */}
+                {loading && (
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            inset: 0,
+                            backgroundColor: 'rgba(255,255,255,0.6)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 10,
+                        }}
+                    >
+                        <CircularProgress />
+                    </Box>
+                )}
             </Box>
 
             {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}

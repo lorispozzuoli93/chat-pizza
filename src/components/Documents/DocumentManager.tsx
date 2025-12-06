@@ -10,8 +10,14 @@ import { setDocuments, setLoading, setError, addDocument } from '../../store/sli
 import { getDocuments, uploadFiles } from '../../api/documents';
 import type { UploadProgress, DocumentItem } from '../../types';
 import { PdfThumbnail } from './PdfThumbnail';
+import { useNavigate } from 'react-router-dom';
 
-export const DocumentManager: React.FC = () => {
+type Props = {
+    compact?: boolean
+};
+
+export const DocumentManager: React.FC<Props> = ({ compact }) => {
+    const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const docs = useAppSelector((s) => s.documents?.items ?? []);
     const error = useAppSelector((s) => s.documents?.error ?? null);
@@ -132,6 +138,28 @@ export const DocumentManager: React.FC = () => {
         // refresh lista dei documenti
         await fetchList();
     };
+
+    if (compact) {
+        // rendering compatto per la sidebar
+        return (
+            <Box>
+                <Grid container spacing={1}>
+                    {docs.slice(0, 6).map(d => (
+                        <Grid item key={d.id}>
+                            <Paper sx={{ p: 0.5, width: 96, textAlign: 'center' }} elevation={0}>
+                                <PdfThumbnail file={d.download_url ?? `/api/documents/${d.id}/file`} width={90} filename={d.filename} />
+                                <Typography variant="caption" noWrap>{d.filename}</Typography>
+                            </Paper>
+                        </Grid>
+                    ))}
+                </Grid>
+
+                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+                    <Button size="small" onClick={() => navigate('/app/documents')}>Apri gestione</Button>
+                </Box>
+            </Box>
+        );
+    }
 
     return (
         <Box>

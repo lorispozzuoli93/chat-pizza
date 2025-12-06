@@ -3,16 +3,15 @@ import MainLayout from './layouts/MainLayout';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import ChatPage from './pages/ChatPage';
+import ChatDetailPage from './pages/ChatDetailPage';
+import DocumentsPage from './pages/DocumentPage';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-
-        {/* login public */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* protected app */}
         <Route
           path="/app"
           element={
@@ -22,11 +21,10 @@ export default function App() {
           }
         >
           <Route index element={<ChatPage />} />
-          <Route path="chat/:chatId" element={<ChatPage />} />
-          <Route path="documents" element={<ChatPage />} />
+          <Route path="chat/:chatId" element={<ChatDetailPage />} />
+          <Route path="documents" element={<DocumentsPage />} />
         </Route>
 
-        {/* redirect root → /login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

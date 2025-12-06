@@ -1,45 +1,30 @@
-import Container from '@mui/material/Container';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-import LogoutIcon from '@mui/icons-material/Logout';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link as RouterLink } from 'react-router-dom';
+import { Box, Container, AppBar, Toolbar, Typography, Button } from '@mui/material';
 import { useAppDispatch, useAppSelector } from '../store';
 import { logout } from '../store/slices/authSlice';
 
 export default function MainLayout() {
     const dispatch = useAppDispatch();
-    const auth = useAppSelector(s => s.auth);
+    const userId = useAppSelector(s => s.auth.userId);
 
     return (
-        <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', p: 2 }}>
-            <Container maxWidth="lg" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
+        <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            <AppBar position="static" color="default" elevation={1}>
+                <Toolbar sx={{ justifyContent: 'space-between' }}>
                     <Box display="flex" alignItems="center" gap={2}>
-                        <Typography variant="h4">Datapizza — Frontend Test</Typography>
-                        <Typography variant="body2" color="text.secondary">MVP</Typography>
+                        <Typography variant="h6">🍕 Datapizza</Typography>
+                        <Button component={RouterLink} to="/app" size="small">Nuova chat</Button>
+                        <Button component={RouterLink} to="/app/documents" size="small">Documenti</Button>
                     </Box>
-
-                    {auth.isAuthenticated && (
-                        <Box display="flex" gap={1} alignItems='center'>
-                            <Typography variant="body2">Loggato come <strong>{auth.userId}</strong></Typography>
-                            <Box display="flex" gap={1}>
-                                <IconButton color="error" onClick={() => dispatch(logout())}>
-                                    <LogoutIcon />
-                                </IconButton>
-                            </Box>
-                        </Box>
-                    )}
-                </Box>
-
-                {/* content area centered inside a Paper for visual focus */}
-                <Paper elevation={0} sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
-                    {/* limit inner width to avoid full-bleed content */}
-                    <Box sx={{ width: '100%', maxWidth: 1200 }}>
-                        <Outlet />
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2">Loggato come <strong>{userId}</strong></Typography>
+                        <Button onClick={() => dispatch(logout())} size="small">Logout</Button>
                     </Box>
-                </Paper>
+                </Toolbar>
+            </AppBar>
+
+            <Container maxWidth="lg" sx={{ py: 3, flex: 1 }}>
+                <Outlet />
             </Container>
         </Box>
     );
