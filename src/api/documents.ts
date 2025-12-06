@@ -1,5 +1,5 @@
-import axios from 'axios';
-import type { DocumentItem } from '../types';
+import axios, { type AxiosProgressEvent } from 'axios';
+import type { DocumentItem, UploadResult } from '../types';
 import { BASE } from '../utils/constants';
 
 export async function getDocuments(): Promise<DocumentItem[]> {
@@ -15,7 +15,7 @@ export async function getDocuments(): Promise<DocumentItem[]> {
 export async function uploadSingleFile(
     file: File,
     onProgress?: (percent: number) => void
-): Promise<any> {
+): Promise<DocumentItem> {
     const url = `${BASE}/api/documents/`;
     const form = new FormData();
     // many backends expect a field name 'files' for multiple; for single we still use 'files'
@@ -24,7 +24,7 @@ export async function uploadSingleFile(
     const res = await axios.post(url, form, {
         withCredentials: true,
         headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (ev: ProgressEvent) => {
+        onUploadProgress: (ev: AxiosProgressEvent) => {
             if (!onProgress) return;
             const pct = ev.total ? Math.round((ev.loaded * 100) / ev.total) : 0;
             onProgress(pct);
@@ -37,14 +37,15 @@ export async function uploadSingleFile(
 export async function uploadFiles(
     files: File[],
     onProgress?: (filename: string, percent: number) => void
-): Promise<Array<{ ok: boolean; filename: string; data?: any; error?: any }>> {
-    const results: Array<{ ok: boolean; filename: string; data?: any; error?: any }> = [];
+): Promise<UploadResult[]> {
+    const results: UploadResult[] = [];
 
     for (const file of files) {
         try {
             const data = await uploadSingleFile(file, (pct) => {
                 onProgress?.(file.name, pct);
             });
+
             results.push({ ok: true, filename: file.name, data });
         } catch (err) {
             results.push({ ok: false, filename: file.name, error: err });

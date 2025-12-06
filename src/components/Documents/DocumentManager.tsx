@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useDropzone, type FileRejection } from 'react-dropzone';
 import {
     Box, Button, LinearProgress, Typography, List, ListItem, ListItemText,
     Alert, Stack, Grid, Paper
@@ -65,7 +65,7 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
     }
 
     // Dropzone setup
-    const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+    const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
         const pdfs = acceptedFiles.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
         if (rejectedFiles.length > 0 && pdfs.length === 0) {
             setProgressList([{ filename: 'Nessun file valido', progress: 0, status: 'error', error: 'Solo PDF supportati' }]);
@@ -103,14 +103,26 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
         });
 
         const successfulFilenames = new Set<string>();
+
+        // Per risolvere il problema 'never', estraiamo il tipo corretto
+        type SuccessResult = Extract<typeof results[number], { ok: true }>;
+
         for (const r of results) {
             if (r.ok) {
-                successfulFilenames.add(r.filename);
-                setProgressList(prev => prev.map(p => p.filename === r.filename ? { ...p, progress: 100, status: 'done' } : p));
-                const doc: DocumentItem = Array.isArray(r.data) ? (r.data[0] ?? { id: String(Date.now()), filename: r.filename }) : (r.data ?? { id: String(Date.now()), filename: r.filename });
+                // Assegniamo r al tipo di successo
+                const successR = r as SuccessResult; // <--- Soluzione all'errore 'never'
+
+                // Usiamo 'successR' per accedere a 'filename'
+                successfulFilenames.add(successR.filename);
+                setProgressList(prev => prev.map(p => p.filename === successR.filename ? { ...p, progress: 100, status: 'done' } : p));
+
+                // r.data è tipizzato come UploadedDocument (e quindi come DocumentItem se sono compatibili)
+                const doc: DocumentItem = successR.data;
+
                 dispatch(addDocument(doc));
-                const url = previews[r.filename];
-                if (url) { URL.revokeObjectURL(url); setPreviews((p) => { const copy = { ...p }; delete copy[r.filename]; return copy; }); }
+
+                const url = previews[successR.filename];
+                if (url) { URL.revokeObjectURL(url); setPreviews((p) => { const copy = { ...p }; delete copy[successR.filename]; return copy; }); }
             } else {
                 setProgressList(prev => prev.map(p => p.filename === r.filename ? { ...p, status: 'error', error: 'Sono consentiti solo i PDF: attention_is_all_you_need.pdf, bitcoin.pdf, unix.pdf', progress: 0 } : p));
             }
@@ -154,7 +166,7 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                             }}
                             elevation={0}
                         >
-                            <PdfThumbnail file={d.download_url ?? `/api/documents/${d.id}/file`} width={90} filename={d.filename} />
+                            <PdfThumbnail file={`/api/documents/${d.id}/file`} width={90} filename={d.filename} />
                             <Typography variant="caption" noWrap>{d.filename}</Typography>
                         </Paper>
                     ))}
@@ -228,7 +240,7 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                 <List>
                     {docs.map(d => (
                         <ListItem key={d.id}>
-                            <ListItemText primary={d.filename} secondary={d.uploaded_at ?? ''} />
+                            <ListItemText primary={d.filename} secondary={d.upload_date ?? ''} />
                         </ListItem>
                     ))}
                 </List>

@@ -1,6 +1,7 @@
+import type { ChatInteraction } from "../types";
 import { BASE } from "../utils/constants";
 
-export async function getChatHistory(): Promise<any[]> {
+export async function getChatList(): Promise<ChatInteraction[]> {
     const res = await fetch(`${BASE}/api/chat/`, { credentials: 'include' });
     if (!res.ok) {
         const txt = await res.text().catch(() => '');
@@ -9,13 +10,7 @@ export async function getChatHistory(): Promise<any[]> {
     return await res.json();
 }
 
-export async function getChatList(): Promise<any[]> {
-    const res = await fetch(`${BASE}/api/chat/`, { credentials: 'include' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    return res.json();
-}
-
-export async function getChatById(chatId: string): Promise<any> {
+export async function getChatById(chatId: string): Promise<ChatInteraction> {
     const res = await fetch(`${BASE}/api/chat/${chatId}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     return res.json();

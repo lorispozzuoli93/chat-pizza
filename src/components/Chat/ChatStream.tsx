@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { addMessage, appendToMessage, updateMessage, clear, setMessages } from '../../store/slices/chatSlice';
+import { addMessage, appendToMessage, updateMessage } from '../../store/slices/chatSlice';
 import { fetchNdjsonStream } from '../../api/stream';
-import { getChatHistory, getChatById } from '../../api/chat';
-import type { NDJSONEvent } from '../../types';
+import type { NDJSONEvent, ChatMessageMeta, ChatRequestBody, Citation } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -13,7 +12,8 @@ import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import MessageBubble from './MessageBubble';
 
-export const ChatStream: React.FC = () => {
+
+export default function CheatStram() {
     const dispatch = useAppDispatch();
     const messages = useAppSelector(s => s.chat.messages);
     const selectedChatId = useAppSelector(s => s.chats?.selectedId);
@@ -28,54 +28,73 @@ export const ChatStream: React.FC = () => {
     const handleSend = async () => {
         setError(null);
         const prompt = input.trim();
-        if (!prompt) { setError('Inserisci una domanda'); return; }
+        if (!prompt) { return; }
 
         const userId = `user-${Date.now()}`;
+        // 1. Aggiunge messaggio utente
         dispatch(addMessage({
             id: userId,
             role: 'user',
             content: prompt,
             createdAt: new Date().toISOString(),
-            partial: false
+            partial: false,
+            meta: null
         }));
 
         const assistantId = `assistant-${uuidv4()}`;
+        // 2. Aggiunge placeholder assistente (in streaming)
         dispatch(addMessage({
             id: assistantId,
             role: 'assistant',
             content: '',
             createdAt: new Date().toISOString(),
-            partial: true
+            partial: true,
+            meta: null
         }));
 
+        // 3. Avvia lo streaming
         abortRef.current?.abort();
         const ac = new AbortController();
         abortRef.current = ac;
         setLoading(true);
+        setInput('');
+
+        // Crea il corpo della richiesta con il tipo corretto ChatRequestBody
+        const requestBody: ChatRequestBody = {
+            query: prompt,
+            chat_id: selectedChatId || undefined
+        };
 
         try {
             await fetchNdjsonStream(
                 '/api/chat/',
-                { query: prompt },
+                requestBody,
                 (evt: NDJSONEvent) => {
+                    // Gestione dei token
                     if (evt.type === 'content' || evt.type === 'token') {
-                        const delta = typeof (evt as any).payload === 'string' ? (evt as any).payload : (evt as any).payload?.delta ?? '';
+                        const delta = typeof evt.payload === 'string' ? evt.payload : evt.payload?.delta ?? '';
                         if (delta) dispatch(appendToMessage({ id: assistantId, delta }));
                     } else if (evt.type === 'citations') {
-                        const refs = (evt as any).references ?? [];
-                        dispatch(updateMessage({ id: assistantId, patch: { partial: false, meta: { citations: refs } } }));
+                        const citationsEvent = evt as { type: 'citations'; references: Citation[] };
+
+                        const refs = citationsEvent.references ?? [];
+                        const newMeta: ChatMessageMeta = { citations: refs };
+                        dispatch(updateMessage({ id: assistantId, patch: { meta: newMeta } }));
                         setLoading(false);
+
+                        // Gestione di altri metadati
                     } else if (evt.type === 'meta') {
-                        dispatch(updateMessage({ id: assistantId, patch: { meta: (evt as any).payload } }));
+                        dispatch(updateMessage({ id: assistantId, patch: { meta: evt.payload } }));
                     } else if (evt.type === 'done') {
                         dispatch(updateMessage({ id: assistantId, patch: { partial: false } }));
                         setLoading(false);
                     } else {
-                        const maybe = (evt as any).payload;
+                        const maybe = (evt as { type: string; payload?: never }).payload;
                         if (typeof maybe === 'string') dispatch(appendToMessage({ id: assistantId, delta: maybe }));
                     }
                 },
                 (err) => {
+                    // Gestione errore durante lo stream
                     dispatch(updateMessage({ id: assistantId, patch: { partial: false } }));
                     setError('Errore nello stream: ' + (err?.message ?? String(err)));
                     setLoading(false);
@@ -83,7 +102,8 @@ export const ChatStream: React.FC = () => {
                 ac.signal
             );
         } catch (err: unknown) {
-            let errorMessage = 'Errore rete';
+            // Gestione errore avvio stream/rete
+            let errorMessage = 'Errore di rete';
             if (err instanceof Error) {
                 errorMessage = err.message;
             } else if (typeof err === 'string') {
@@ -92,109 +112,19 @@ export const ChatStream: React.FC = () => {
             setError(errorMessage);
             setLoading(false);
             dispatch(updateMessage({ id: assistantId, patch: { partial: false } }));
-        } finally {
-            setInput('');
         }
     };
 
-    // Carica la cronologia overall all'mount
+    // Scroll to bottom (ottimizzato)
     useEffect(() => {
-        (async () => {
-            const hist = await getChatHistory();
-
-            if (!hist) return;
-
-            // recupera userId mock dal store per inference
-            const myUserId = (store.getState?.().auth?.userId) ?? (useAppSelector ? undefined : undefined);
-            // Se hai accesso al hook qui, usa: const myUserId = useAppSelector(s => s.auth.userId);
-
-            const pushMessage = (m: any) => {
-                // prova più nomi comuni per il campo che identifica l'autore
-                const possibleSender = m.role ?? m.sender ?? m.user_id ?? m.author ?? null;
-                const role = typeof possibleSender === 'string'
-                    ? (possibleSender === myUserId ? 'user' : (possibleSender === 'assistant' || possibleSender === 'bot' ? 'assistant' : 'assistant'))
-                    : (m.role ?? (m.from === myUserId ? 'user' : 'assistant'));
-
-                dispatch(addMessage({
-                    id: m.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    role,
-                    content: m.content ?? m.text ?? '',
-                    createdAt: m.created_at ?? m.timestamp ?? new Date().toISOString(),
-                    partial: false,
-                    meta: m.meta ?? null
-                }));
-            };
-
-            // Caso A: array di chat (meta) contenente messages
-            if (Array.isArray(hist) && hist.length > 0 && hist[0].messages) {
-                hist.forEach((chat: any) => {
-                    const msgs = Array.isArray(chat.messages) ? chat.messages : [];
-                    msgs.forEach(pushMessage);
-                });
-                return;
-            }
-
-            // Caso B: array di messaggi
-            if (Array.isArray(hist) && hist.length > 0 && typeof hist[0] === 'object' && !hist[0].messages) {
-                hist.forEach(pushMessage);
-                return;
-            }
-
-            // Caso C: singolo oggetto con campo messages
-            if (hist.messages && Array.isArray(hist.messages)) {
-                hist.messages.forEach(pushMessage);
-            }
-        })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Caricamento delle singole chat (quando cambia selectedChatId)
-    useEffect(() => {
-        if (!selectedChatId) return;
-
-        (async () => {
-            try {
-                // abort eventuale stream in corso ma NON pulire subito la UI — mostra overlay invece
-                abortRef.current?.abort();
-                setLoading(true);
-                setError(null);
-
-                const payload = await getChatById(selectedChatId);
-                const messagesArr = Array.isArray(payload) ? payload : (payload.messages ?? []);
-                const mapped = messagesArr.map((m: any) => ({
-                    id: m.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    role: m.role ?? 'assistant',
-                    content: m.content ?? '',
-                    createdAt: m.created_at ?? new Date().toISOString(),
-                    partial: false,
-                    meta: m.meta ?? null
-                }));
-
-                // replace messages in one shot (evita flicker)
-                dispatch(setMessages(mapped));
-            } catch (e: unknown) {
-                let errorMessage: string;
-                if (e instanceof Error) errorMessage = e.message;
-                else errorMessage = String(e);
-                setError('Errore caricamento conversazione: ' + errorMessage);
-                // non pulire i messaggi attuali per non creare vuoto improvviso
-            } finally {
-                setLoading(false);
-            }
-        })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedChatId]);
-
-    // scroll to bottom quando i messaggi cambiano e non siamo in loading
-    useEffect(() => {
-        if (loading) return;
         const el = messagesContainerRef.current;
         if (!el) return;
-        // piccolo timeout per assicurarsi che il DOM sia aggiornato
+
         setTimeout(() => {
             el.scrollTop = el.scrollHeight;
         }, 50);
-    }, [messages, loading]);
+    }, [messages]);
+
 
     return (
         <Box>
@@ -206,11 +136,17 @@ export const ChatStream: React.FC = () => {
                     sx={{ maxHeight: 360, overflow: 'auto', mb: 1, p: 1 }}
                 >
                     <Stack spacing={1}>
-                        {messages.map(m => <MessageBubble key={m.id} message={m} />)}
+                        {messages.length === 0 && !selectedChatId ? (
+                            <Box sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
+                                Inizia una nuova conversazione.
+                            </Box>
+                        ) : (
+                            messages.map(m => <MessageBubble key={m.id} message={m} />)
+                        )}
                     </Stack>
                 </Box>
 
-                {/* Loading overlay: appare sopra la lista messaggi mentre carichiamo la chat */}
+                {/* Loading overlay */}
                 {loading && (
                     <Box
                         sx={{
@@ -238,12 +174,23 @@ export const ChatStream: React.FC = () => {
                     fullWidth
                     size="small"
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                    disabled={loading}
                 />
-                <Button variant="contained" onClick={handleSend} disabled={loading}>Invia</Button>
-                <Button variant="outlined" onClick={() => { abortRef.current?.abort(); setLoading(false); }}>Annulla</Button>
+                <Button
+                    variant="contained"
+                    onClick={handleSend}
+                    disabled={loading || !input.trim()}
+                >
+                    Invia
+                </Button>
+                <Button
+                    variant="outlined"
+                    onClick={() => { abortRef.current?.abort(); setLoading(false); }}
+                    disabled={!loading}
+                >
+                    Annulla
+                </Button>
             </Stack>
         </Box>
     );
 };
-
-export default ChatStream;

@@ -12,7 +12,7 @@ import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import { Link as RouterLink } from 'react-router-dom';
 
-export const ChatList: React.FC = () => {
+export default function ChatList() {
     const dispatch = useAppDispatch();
     const { list = [], loading = false, error = null } = useAppSelector(s => s.chats || {});
 
@@ -45,7 +45,15 @@ export const ChatList: React.FC = () => {
 
     return (
         <List sx={{ width: '100%', maxHeight: '80vh', overflow: 'auto' }}>
-            {list.length === 0 && <Typography variant="caption" sx={{ p: 2 }}>Nessuna chat trovata</Typography>}
+            {list.length === 0 && (
+                <Typography
+                    variant="caption"
+                    sx={{ p: 2 }}
+                    component="div"
+                >
+                    Nessuna chat trovata
+                </Typography>
+            )}
 
             {list.map(c => (
                 <React.Fragment key={c.id}>
@@ -56,6 +64,8 @@ export const ChatList: React.FC = () => {
                         alignItems="flex-start"
                     >
                         <ListItemText
+                            secondaryTypographyProps={{ component: 'div' }}
+
                             primary={c.title ?? `Chat ${String(c.id).slice(0, 8)}`}
                             secondary={
                                 <>

@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
-import { ProtectedRoute } from './components/Auth/ProtectedRoute';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
-import ChatPage from './pages/ChatPage';
 import ChatDetailPage from './pages/ChatDetailPage';
 import DocumentsPage from './pages/DocumentPage';
+import ChatPage from './pages/ChatPage';
 
 export default function App() {
   return (

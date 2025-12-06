@@ -21,13 +21,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({ isAuthenticated, userId, onLogout
   const userInitial = userId ? userId.charAt(0).toUpperCase() : '?';
 
   return (
-    // AppBar fornisce la barra in alto, position="sticky" è una buona scelta
     <AppBar position="sticky" color="default" elevation={1}>
       <Toolbar>
-        {/* LOGO E NOME APP (Sinistra) */}
         <Box display="flex" alignItems="center" flexGrow={1} gap={1}>
-
-          {/* L'immagine della pizza.png dalla cartella public viene caricata qui */}
           <Box
             component="img"
             src="/pizza.png"
@@ -40,7 +36,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({ isAuthenticated, userId, onLogout
           </Typography>
         </Box>
 
-        {/* STATO DI LOGIN (Destra) */}
         {isAuthenticated && userId ? (
           <Box display="flex" gap={1} alignItems="center">
 
@@ -50,14 +45,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({ isAuthenticated, userId, onLogout
               {userInitial}
             </Avatar>
 
-            {/* Pulsante di Logout */}
             <IconButton color="error" onClick={onLogout} size="small">
               <LogoutIcon fontSize="small" />
             </IconButton>
 
           </Box>
         ) : (
-          // Icona base per utente non autenticato o per il placeholder
           <IconButton color="inherit" disabled>
             <AccountCircleIcon />
           </IconButton>

@@ -2,8 +2,8 @@ import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import { ChatStream } from '../components/Chat/ChatStream';
-import { ChatList } from '../components/Chat/ChatList';
+import ChatStream from '../components/Chat/ChatStream';
+import ChatList from '../components/Chat/ChatList';
 import { DocumentManager } from '../components/Documents/DocumentManager';
 import DocsStatusBanner from '../components/DocsStatusBanner/DocsStatusBanner';
 

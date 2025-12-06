@@ -1,9 +1,8 @@
-import React from 'react';
 import { Alert, Button, Box } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../store';
 
-const DocsStatusBanner: React.FC = () => {
+export default function DocsStatusBanner() {
     const docs = useAppSelector((s) => s.documents?.items ?? []);
     const navigate = useNavigate();
 
@@ -23,6 +22,4 @@ const DocsStatusBanner: React.FC = () => {
             </Alert>
         </Box>
     );
-};
-
-export default DocsStatusBanner;
+};;

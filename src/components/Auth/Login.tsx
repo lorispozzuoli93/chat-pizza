@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { TextField, Button, Box, Alert, CircularProgress } from '@mui/material';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { loginSuccess } from '../../store/slices/authSlice';
 import { loginApi } from '../../api/auth';
 import { useNavigate } from 'react-router-dom';
 
-export const Login: React.FC = () => {
+export default function Login() {
     const dispatch = useAppDispatch();
     const isAuthenticated = useAppSelector(s => s.auth.isAuthenticated);
     const [userId, setUserId] = useState('');

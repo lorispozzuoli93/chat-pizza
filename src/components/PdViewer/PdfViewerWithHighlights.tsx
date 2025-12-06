@@ -23,7 +23,7 @@ const PdfViewerWithHighlights: React.FC<Props> = ({ documentId, pageNumber = 1, 
     const url = fileUrl ?? `/api/documents/${documentId}/file`;
 
 
-    const onDocumentLoadSuccess = useCallback((doc: any) => {
+    const onDocumentLoadSuccess = useCallback(() => {
         setLoading(false);
     }, []);
 
@@ -64,7 +64,7 @@ const PdfViewerWithHighlights: React.FC<Props> = ({ documentId, pageNumber = 1, 
     return (
         <Box sx={{ width: '100%', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography variant="subtitle1">Document: {documentId} — Pagina {pageNumber}</Typography>
+                <Typography variant="subtitle1">Id documento: {documentId} — Pagina {pageNumber}</Typography>
                 {loading && <CircularProgress size={16} />}
             </Box>
 

@@ -2,7 +2,7 @@ import Paper from '@mui/material/Paper';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import { Login } from '../components/Auth/Login';
+import Login from '../components/Auth/Login';
 
 export default function LoginPage() {
     return (
