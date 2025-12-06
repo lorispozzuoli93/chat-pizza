@@ -1,5 +1,48 @@
 # React + TypeScript + Vite
 
+
+# Datapizza — Frontend Test (MVP)
+
+## Overview
+Frontend sviluppato con: React + TypeScript + Vite + Redux Toolkit + Material UI.  
+Integrazione con backend fornito via FastAPI (containerizzato).
+Per allegare i file ho usato una libreria chiamata drop zone in cui è previsto anche il drag and drop
+
+## Requisiti
+- Node 18+, npm
+- Docker & Docker Compose (se vuoi eseguire i container)
+- (opzionale) gh CLI per gestire repo/collaboratori
+
+## Setup & sviluppo locale
+
+1. Clona il repo frontend:
+```bash
+git clone git@github.com:TUOUSER/datapizza-frontend-test.git
+cd datapizza-frontend-test
+npm ci
+npm i
+
+Avvia il backend (in test-tecnico-frontend-engineer/):
+
+cd ../test-tecnico-frontend-engineer
+docker-compose up --build
+
+
+Avvia il frontend (dev):
+
+cd ../datapizza-frontend-test
+npm run dev
+# Vite proxy inoltra /api a http://localhost:8000 o http://llocalhost:5173/
+
+
+API base (dev): http://localhost:5173/api proxato → backend http://localhost:8000/api
+
+Build e Docker (opzionale)
+npm run build
+docker build -t datapizza-frontend:latest .
+docker run -p 3000:80 datapizza-frontend:latest
+```
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
