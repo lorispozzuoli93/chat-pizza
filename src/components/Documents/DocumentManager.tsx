@@ -155,7 +155,7 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                 </Grid>
 
                 <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
-                    <Button size="small" onClick={() => navigate('/app/documents')}>Apri gestione</Button>
+                    <Button size="small" onClick={() => navigate('/app/documents')}>Apri gestione documenti</Button>
                 </Box>
             </Box>
         );

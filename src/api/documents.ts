@@ -60,7 +60,6 @@ export async function getDocumentDetail(id: string) {
     return await res.json();
 }
 
-// returns the direct file endpoint (we'll fetch inside PdfViewer with credentials)
 export function getDocumentFileUrl(id: string) {
     return `${BASE}/api/documents/${id}/file`;
 }

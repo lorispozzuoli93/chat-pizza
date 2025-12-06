@@ -11,7 +11,7 @@ import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
-import { MessageBubble } from './MessageBubble';
+import MessageBubble from './MessageBubble';
 
 export const ChatStream: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -180,7 +180,6 @@ export const ChatStream: React.FC = () => {
                 >
                     <Stack spacing={1}>
                         {messages.map(m => <MessageBubble key={m.id} message={m} />)}
-                        {/* se vuoi puoi lasciare un placeholder finale */}
                     </Stack>
                 </Box>
 

@@ -54,3 +54,10 @@ export interface UploadProgress {
     status: 'pending' | 'uploading' | 'done' | 'error';
     error?: string;
 }
+
+export interface OpenCitationState {
+    document_id: string;
+    filename?: string;
+    pagesMap: Record<number, number[][]>;
+    selectedPage: number;
+};
