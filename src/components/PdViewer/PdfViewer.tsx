@@ -5,18 +5,16 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Typography from '@mui/material/Typography';
 import { getDocumentFileUrl } from '../../api/documents';
+import type { BBox, Highlight } from '../../types';
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${(pdfjs as any).version}/pdf.worker.min.js`;
-
-type BBox = number[] | { x: number; y: number; w: number; h: number };
-type Highlight = { page: number; bbox: BBox; color?: string; label?: string };
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 type Props = {
-    fileUrl?: string;            // absolute or relative (if not provided we'll use getDocumentFileUrl)
-    fileId?: string;             // if provided, we build url with getDocumentFileUrl(fileId)
+    fileUrl?: string;
+    fileId?: string;
     page?: number;
     width?: number;
-    highlights?: Highlight[];    // highlight boxes across pages
+    highlights?: Highlight[];
     onLoad?: () => void;
 };
 
@@ -122,14 +120,8 @@ export const PdfViewer: React.FC<Props> = ({ fileUrl, fileId, page = 1, width, h
 
 export default PdfViewer;
 
-/* --- Overlay component --- */
 function HighlightOverlay({ highlight, containerWidth }: { highlight: Highlight; pageNumber: number; containerWidth: number }) {
-    // We don't have direct page height here, so we assume typical PDF aspect ratio.
-    // A better approach: render Page with onLoadSuccess and capture viewport.width/height then compute scaling.
-    // For simplicity we position using containerWidth and assume viewportScale = containerWidth / pdfViewport.width
-    // We'll implement a best-effort scaling assuming bbox normalized (0..1). If bbox absolute, we still try to scale.
     const { bbox, color = 'rgba(255, 165, 0, 0.35)' } = highlight;
-    // normalize bbox to object {x,y,w,h}
     const toObj = (b: BBox) => {
         if (Array.isArray(b)) {
             return { x: b[0], y: b[1], w: b[2], h: b[3] };
@@ -139,7 +131,6 @@ function HighlightOverlay({ highlight, containerWidth }: { highlight: Highlight;
     };
     const b = toObj(bbox);
 
-    // If values seem normalized (<= 1) treat relative to container
     const isNormalized = [b.x, b.y, b.w, b.h].every(v => typeof v === 'number' && v <= 1);
 
     const style: React.CSSProperties = isNormalized ? {
@@ -153,7 +144,6 @@ function HighlightOverlay({ highlight, containerWidth }: { highlight: Highlight;
         pointerEvents: 'none',
         boxSizing: 'border-box',
     } : {
-        // absolute values — we don't know page original dims, so treat same as normalized but scaled heuristically
         position: 'absolute',
         left: `${Math.max(0, b.x / containerWidth * 100)}%`,
         top: `${Math.max(0, b.y / containerWidth * 100)}%`,

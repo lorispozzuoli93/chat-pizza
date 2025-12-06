@@ -100,22 +100,49 @@ export const ChatStream: React.FC = () => {
     // Carica la cronologia overall all'mount
     useEffect(() => {
         (async () => {
-            try {
-                const hist = await getChatHistory();
-                if (!Array.isArray(hist)) return;
-                dispatch(clear());
-                hist.forEach((m: any) => {
-                    dispatch(addMessage({
-                        id: m.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                        role: (m.role as any) ?? 'assistant',
-                        content: m.content ?? '',
-                        createdAt: m.created_at ?? m.uploaded_at ?? new Date().toISOString(),
-                        partial: false,
-                        meta: m.meta ?? null
-                    }));
+            const hist = await getChatHistory();
+
+            if (!hist) return;
+
+            // recupera userId mock dal store per inference
+            const myUserId = (store.getState?.().auth?.userId) ?? (useAppSelector ? undefined : undefined);
+            // Se hai accesso al hook qui, usa: const myUserId = useAppSelector(s => s.auth.userId);
+
+            const pushMessage = (m: any) => {
+                // prova più nomi comuni per il campo che identifica l'autore
+                const possibleSender = m.role ?? m.sender ?? m.user_id ?? m.author ?? null;
+                const role = typeof possibleSender === 'string'
+                    ? (possibleSender === myUserId ? 'user' : (possibleSender === 'assistant' || possibleSender === 'bot' ? 'assistant' : 'assistant'))
+                    : (m.role ?? (m.from === myUserId ? 'user' : 'assistant'));
+
+                dispatch(addMessage({
+                    id: m.id ?? `srv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    role,
+                    content: m.content ?? m.text ?? '',
+                    createdAt: m.created_at ?? m.timestamp ?? new Date().toISOString(),
+                    partial: false,
+                    meta: m.meta ?? null
+                }));
+            };
+
+            // Caso A: array di chat (meta) contenente messages
+            if (Array.isArray(hist) && hist.length > 0 && hist[0].messages) {
+                hist.forEach((chat: any) => {
+                    const msgs = Array.isArray(chat.messages) ? chat.messages : [];
+                    msgs.forEach(pushMessage);
                 });
-            } catch (e) {
-                console.warn('No chat history / error', e);
+                return;
+            }
+
+            // Caso B: array di messaggi
+            if (Array.isArray(hist) && hist.length > 0 && typeof hist[0] === 'object' && !hist[0].messages) {
+                hist.forEach(pushMessage);
+                return;
+            }
+
+            // Caso C: singolo oggetto con campo messages
+            if (hist.messages && Array.isArray(hist.messages)) {
+                hist.messages.forEach(pushMessage);
             }
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -61,3 +61,6 @@ export interface OpenCitationState {
     pagesMap: Record<number, number[][]>;
     selectedPage: number;
 };
+
+export type BBox = number[] | { x: number; y: number; w: number; h: number };
+export type Highlight = { page: number; bbox: BBox; color?: string; label?: string };

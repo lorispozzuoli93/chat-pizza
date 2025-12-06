@@ -28,11 +28,9 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
     // map file -> objectURL for preview
     const [previews, setPreviews] = useState<Record<string, string>>({});
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    useEffect(() => { fetchList(); }, []);
+    useEffect(() => { fetchList(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
-        // generate object URLs for new files
         const newPreviews: Record<string, string> = {};
         selectedFiles.forEach((f) => {
             if (!previews[f.name]) {
@@ -46,7 +44,6 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
     }, [selectedFiles]);
 
     useEffect(() => {
-        // cleanup on unmount
         return () => {
             Object.values(previews).forEach((url) => URL.revokeObjectURL(url));
         };
@@ -59,12 +56,8 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
             dispatch(setDocuments(list));
         } catch (e: unknown) {
             let errorMessage: string;
-            if (e instanceof Error) {
-                errorMessage = e.message;
-            }
-            else {
-                errorMessage = 'Errore caricamento documenti';
-            }
+            if (e instanceof Error) errorMessage = e.message;
+            else errorMessage = 'Errore caricamento documenti';
             dispatch(setError(errorMessage));
         } finally {
             dispatch(setLoading(false));
@@ -73,10 +66,8 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
 
     // Dropzone setup
     const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
-        // validate mime type & optionally size
         const pdfs = acceptedFiles.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
         if (rejectedFiles.length > 0 && pdfs.length === 0) {
-            // show error
             setProgressList([{ filename: 'Nessun file valido', progress: 0, status: 'error', error: 'Solo PDF supportati' }]);
             return;
         }
@@ -107,12 +98,10 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
             return;
         }
 
-        // partita di upload sequenziale, uploadFiles fornisce onProgress per file
         const results = await uploadFiles(selectedFiles, (filename, percent) => {
             setProgressList(prev => prev.map(p => p.filename === filename ? { ...p, progress: percent, status: percent < 100 ? 'uploading' : p.status } : p));
         });
 
-        // costruisci nuovi array per mantenere i file falliti
         const successfulFilenames = new Set<string>();
         for (const r of results) {
             if (r.ok) {
@@ -120,7 +109,6 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                 setProgressList(prev => prev.map(p => p.filename === r.filename ? { ...p, progress: 100, status: 'done' } : p));
                 const doc: DocumentItem = Array.isArray(r.data) ? (r.data[0] ?? { id: String(Date.now()), filename: r.filename }) : (r.data ?? { id: String(Date.now()), filename: r.filename });
                 dispatch(addDocument(doc));
-                // revoke preview immediately for success
                 const url = previews[r.filename];
                 if (url) { URL.revokeObjectURL(url); setPreviews((p) => { const copy = { ...p }; delete copy[r.filename]; return copy; }); }
             } else {
@@ -128,31 +116,49 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
             }
         }
 
-        // mantieni solo i file che NON sono andati a buon fine
         const failedFiles = selectedFiles.filter(f => !successfulFilenames.has(f.name));
         setSelectedFiles(failedFiles);
-
-        // opzionale: se vuoi rimuovere dalla progressList i job completati, puoi filtrarli:
         setProgressList(prev => prev.filter(p => !successfulFilenames.has(p.filename)));
-
-        // refresh lista dei documenti
         await fetchList();
     };
 
     if (compact) {
-        // rendering compatto per la sidebar
+        // rendering compatto per la sidebar -> riga orizzontale scrollabile
         return (
             <Box>
-                <Grid container spacing={1}>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        gap: 1,
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        px: 0.5,
+                        py: 0.5,
+                        // evita che gli elementi vadano a capo
+                        flexWrap: 'nowrap',
+                        // facciamo sì che lo scrollbar appaia quando necessario
+                        WebkitOverflowScrolling: 'touch',
+                        // opzionale, stile scrollbar webkit (piccola)
+                        '&::-webkit-scrollbar': { height: 8 },
+                        '&::-webkit-scrollbar-thumb': { borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.2)' },
+                    }}
+                >
                     {docs.slice(0, 6).map(d => (
-                        <Grid item key={d.id}>
-                            <Paper sx={{ p: 0.5, width: 96, textAlign: 'center' }} elevation={0}>
-                                <PdfThumbnail file={d.download_url ?? `/api/documents/${d.id}/file`} width={90} filename={d.filename} />
-                                <Typography variant="caption" noWrap>{d.filename}</Typography>
-                            </Paper>
-                        </Grid>
+                        <Paper
+                            key={d.id}
+                            sx={{
+                                p: 0.5,
+                                width: 96,
+                                textAlign: 'center',
+                                flex: '0 0 auto', // non shrink
+                            }}
+                            elevation={0}
+                        >
+                            <PdfThumbnail file={d.download_url ?? `/api/documents/${d.id}/file`} width={90} filename={d.filename} />
+                            <Typography variant="caption" noWrap>{d.filename}</Typography>
+                        </Paper>
                     ))}
-                </Grid>
+                </Box>
 
                 <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
                     <Button size="small" onClick={() => navigate('/app/documents')}>Apri gestione documenti</Button>
@@ -188,7 +194,6 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                         <Grid container spacing={2} sx={{ mt: 1 }}>
                             {selectedFiles.map((f) => {
                                 const p = progressList.find((x) => x.filename === f.name);
-
                                 return (
                                     <Grid item key={f.name}>
                                         <Paper sx={{ p: 1 }}>
@@ -197,12 +202,10 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                                                 <Button size="small" onClick={() => removeSelected(f.name)}>Rimuovi</Button>
                                             </Stack>
 
-                                            {/* mostra la progress BAR solo se lo stato è 'uploading' */}
                                             {p?.status === 'uploading' && (
                                                 <LinearProgress sx={{ mt: 1 }} variant="determinate" value={p.progress ?? 0} />
                                             )}
 
-                                            {/* opzionale: mostra small badge per pending/done/error */}
                                             {p?.status === 'pending' && <Typography variant="caption" color="text.secondary">In attesa di invio</Typography>}
                                             {p?.status === 'done' && <Typography variant="caption" color="success.main">Caricato</Typography>}
                                             {p?.status === 'error' && <Alert severity="error" sx={{ mt: 1 }}>{p.error}</Alert>}
@@ -233,3 +236,5 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
         </Box>
     );
 };
+
+export default DocumentManager;
