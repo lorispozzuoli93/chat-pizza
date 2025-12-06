@@ -1,8 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import {
-    Box, Button, LinearProgress, Typography, List, ListItem, ListItemText,
-    Alert, Stack, Grid, Paper
+    Box, Button, LinearProgress, Typography,
+    Alert, Stack, Grid, Paper,
+    CircularProgress,
+    Card,
+    CardContent,
+    Tooltip,
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -11,6 +15,8 @@ import { getDocuments, uploadFiles } from '../../api/documents';
 import type { UploadProgress, DocumentItem } from '../../types';
 import { PdfThumbnail } from './PdfThumbnail';
 import { useNavigate } from 'react-router-dom';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 type Props = {
     compact?: boolean
@@ -24,6 +30,7 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
 
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [progressList, setProgressList] = useState<UploadProgress[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
 
     // map file -> objectURL for preview
     const [previews, setPreviews] = useState<Record<string, string>>({});
@@ -98,44 +105,60 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
             return;
         }
 
-        const results = await uploadFiles(selectedFiles, (filename, percent) => {
-            setProgressList(prev => prev.map(p => p.filename === filename ? { ...p, progress: percent, status: percent < 100 ? 'uploading' : p.status } : p));
-        });
+        // 1. Attiva il Loading 
+        setIsUploading(true);
 
-        const successfulFilenames = new Set<string>();
+        try {
+            const results = await uploadFiles(selectedFiles, (filename, percent) => {
+                setProgressList(prev => prev.map(p => p.filename === filename ? { ...p, progress: percent, status: percent < 100 ? 'uploading' : p.status } : p));
+            });
 
-        // Per risolvere il problema 'never', estraiamo il tipo corretto
-        type SuccessResult = Extract<typeof results[number], { ok: true }>;
+            const successfulFilenames = new Set<string>();
 
-        for (const r of results) {
-            if (r.ok) {
-                // Assegniamo r al tipo di successo
-                const successR = r as SuccessResult; // <--- Soluzione all'errore 'never'
+            // Per risolvere il problema 'never', estraiamo il tipo corretto
+            type SuccessResult = Extract<typeof results[number], { ok: true }>;
 
-                // Usiamo 'successR' per accedere a 'filename'
-                successfulFilenames.add(successR.filename);
-                setProgressList(prev => prev.map(p => p.filename === successR.filename ? { ...p, progress: 100, status: 'done' } : p));
+            for (const r of results) {
+                if (r.ok) {
+                    // Assegniamo r al tipo di successo
+                    const successR = r as SuccessResult;
 
-                // r.data è tipizzato come UploadedDocument (e quindi come DocumentItem se sono compatibili)
-                const doc: DocumentItem = successR.data;
+                    successfulFilenames.add(successR.filename);
+                    setProgressList(prev => prev.map(p => p.filename === successR.filename ? { ...p, progress: 100, status: 'done' } : p));
 
-                dispatch(addDocument(doc));
+                    const doc: DocumentItem = successR.data;
+                    dispatch(addDocument(doc));
 
-                const url = previews[successR.filename];
-                if (url) { URL.revokeObjectURL(url); setPreviews((p) => { const copy = { ...p }; delete copy[successR.filename]; return copy; }); }
-            } else {
-                setProgressList(prev => prev.map(p => p.filename === r.filename ? { ...p, status: 'error', error: 'Sono consentiti solo i PDF: attention_is_all_you_need.pdf, bitcoin.pdf, unix.pdf', progress: 0 } : p));
+                    const url = previews[successR.filename];
+                    if (url) {
+                        URL.revokeObjectURL(url);
+                        setPreviews((p) => {
+                            const copy = { ...p };
+                            delete copy[successR.filename];
+                            return copy;
+                        });
+                    }
+                } else {
+                    setProgressList(prev => prev.map(p => p.filename === r.filename ? { ...p, status: 'error', error: 'Sono consentiti solo i PDF: attention_is_all_you_need.pdf, bitcoin.pdf, unix.pdf', progress: 0 } : p));
+                }
             }
-        }
 
-        const failedFiles = selectedFiles.filter(f => !successfulFilenames.has(f.name));
-        setSelectedFiles(failedFiles);
-        setProgressList(prev => prev.filter(p => !successfulFilenames.has(p.filename)));
-        await fetchList();
+            const failedFiles = selectedFiles.filter(f => !successfulFilenames.has(f.name));
+            setSelectedFiles(failedFiles);
+            setProgressList(prev => prev.filter(p => !successfulFilenames.has(p.filename)));
+            await fetchList();
+
+        } catch (e: unknown) {
+            let errorMessage: string;
+            if (e instanceof Error) errorMessage = e.message;
+            else errorMessage = 'Errore durante upload dei file';
+            dispatch(setError(errorMessage));
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     if (compact) {
-        // rendering compatto per la sidebar -> riga orizzontale scrollabile
         return (
             <Box>
                 <Box
@@ -146,11 +169,8 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                         overflowY: 'hidden',
                         px: 0.5,
                         py: 0.5,
-                        // evita che gli elementi vadano a capo
                         flexWrap: 'nowrap',
-                        // facciamo sì che lo scrollbar appaia quando necessario
                         WebkitOverflowScrolling: 'touch',
-                        // opzionale, stile scrollbar webkit (piccola)
                         '&::-webkit-scrollbar': { height: 8 },
                         '&::-webkit-scrollbar-thumb': { borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.2)' },
                     }}
@@ -162,7 +182,7 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                                 p: 0.5,
                                 width: 96,
                                 textAlign: 'center',
-                                flex: '0 0 auto', // non shrink
+                                flex: '0 0 auto',
                             }}
                             elevation={0}
                         >
@@ -199,7 +219,6 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                     <Button startIcon={<UploadFileIcon />} sx={{ mt: 1 }}>Scegli file</Button>
                 </Box>
 
-                {/* previews & selected files */}
                 {selectedFiles.length > 0 && (
                     <>
                         <Typography variant="subtitle2" sx={{ mt: 2 }}>Inviati (anteprima)</Typography>
@@ -228,22 +247,66 @@ export const DocumentManager: React.FC<Props> = ({ compact }) => {
                         </Grid>
 
                         <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-                            <Button variant="contained" onClick={handleUpload}>Upload selezionati</Button>
+                            <Button
+                                variant="contained"
+                                onClick={handleUpload}
+                                disabled={selectedFiles.length === 0 || isUploading}
+                            >
+                                <Typography variant="caption" color="text.secondary">{isUploading ? 'Invio in corso...' : 'Carica Documenti'}</Typography>
+                                {isUploading && (
+                                    <CircularProgress
+                                        size={20}
+                                        sx={{ ml: 1, color: 'white' }}
+                                    />
+                                )}
+                            </Button>
                             <Button variant="outlined" onClick={() => { setSelectedFiles([]); setProgressList([]); Object.values(previews).forEach(u => URL.revokeObjectURL(u)); setPreviews({}); }}>Annulla</Button>
                         </Stack>
                     </>
                 )}
             </Paper>
 
-            <Box sx={{ mt: 3 }}>
-                <Typography variant="h6">Documenti caricati</Typography>
-                <List>
+            <Box sx={{ mt: 4 }}>
+                <Typography variant="h6" gutterBottom>
+                    Documenti caricati ({docs.length})
+                </Typography>
+
+                <Grid container spacing={2}>
                     {docs.map(d => (
-                        <ListItem key={d.id}>
-                            <ListItemText primary={d.filename} secondary={d.upload_date ?? ''} />
-                        </ListItem>
+                        <Grid item xs={12} sm={6} md={4} lg={3} key={d.id}>
+                            <Card variant="outlined" sx={{ height: '100%' }}>
+                                <CardContent sx={{ pb: 1 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+
+                                        <InsertDriveFileIcon color="primary" sx={{ mr: 1 }} />
+
+                                        <Tooltip title={`Stato: ${d.status}`}>
+                                            <CheckCircleIcon
+                                                color={d.status === 'ingested' ? 'success' : 'action'}
+                                                sx={{ fontSize: 16, mr: 1 }}
+                                            />
+                                        </Tooltip>
+
+                                        <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'bold' }}>
+                                            {d.filename}
+                                        </Typography>
+                                    </Box>
+
+                                    <Typography variant="caption" color="text.secondary" display="block">
+                                        Caricato il: {new Date(d.upload_date).toLocaleDateString()}
+                                    </Typography>
+
+                                    {d.page_count && (
+                                        <Typography variant="caption" color="text.secondary" display="block">
+                                            Pagine: {d.page_count}
+                                        </Typography>
+                                    )}
+
+                                </CardContent>
+                            </Card>
+                        </Grid>
                     ))}
-                </List>
+                </Grid>
             </Box>
         </Box>
     );

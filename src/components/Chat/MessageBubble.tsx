@@ -12,7 +12,7 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import type { ChatMessage, OpenCitationState } from '../../types';
+import type { ChatMessage, Citation, OpenCitationState } from '../../types';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
@@ -30,13 +30,13 @@ const sanitizeSchema = {
 };
 
 const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
-    const [openCitation, setOpenCitation] = useState<OpenCitationState>(null);
+    const [openCitation, setOpenCitation] = useState<OpenCitationState | null>(null);
 
-    const citations = (message.meta?.citations ?? []) as any[];
+    const citations: Citation[] = (message.meta?.citations ?? []) as Citation[];
 
-    const openCitationForRef = (ref: any) => {
+    const openCitationForRef = (ref: Citation) => {
         // page number suggested by the citation top-level (if present)
-        const defaultPage = Number(ref.page_number ?? ref.page ?? 1);
+        const defaultPage = Number(ref.page_number ?? 1);
 
         // bounding_regions might be an array with items having page_number + rects_in
         const bRegions = ref.bounding_regions ?? [];
@@ -45,24 +45,15 @@ const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
         const pagesMap: Record<number, number[][]> = {};
 
         // if there are explicit bounding_regions, use them grouped by br.page_number (fallback to defaultPage)
-        bRegions.forEach((br: any) => {
+        bRegions.forEach((br) => {
             const brPage = Number(br.page_number ?? defaultPage);
             const rects = Array.isArray(br.rects_in) ? br.rects_in : [];
             if (!pagesMap[brPage]) pagesMap[brPage] = [];
             // ensure we push arrays of numbers
-            rects.forEach((r: any) => {
-                if (Array.isArray(r) && r.length >= 4) pagesMap[brPage].push(r.map((x: any) => Number(x)));
+            rects.forEach((r) => {
+                if (Array.isArray(r) && r.length >= 4) pagesMap[brPage].push(r.map((x) => Number(x)));
             });
         });
-
-        // If no bounding_regions present but ref may have a single rect-like field, try to use it (defensive)
-        if (Object.keys(pagesMap).length === 0) {
-            // try common fallbacks (e.g. ref.rects or single br)
-            const fallbackRects = ref.rects ?? ref.rects_in ?? [];
-            if (Array.isArray(fallbackRects) && fallbackRects.length > 0 && Array.isArray(fallbackRects[0])) {
-                pagesMap[defaultPage] = fallbackRects.map((r: any) => r.map((x: any) => Number(x)));
-            }
-        }
 
         // if still empty, open with empty highlights for that page
         if (Object.keys(pagesMap).length === 0) {
@@ -70,10 +61,11 @@ const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
         }
 
         // ensure selectedPage is present in pagesMap
-        const selectedPage = pagesMap[defaultPage] ? defaultPage : Number(Object.keys(pagesMap)[0]);
+        const pageKeys = Object.keys(pagesMap);
+        const selectedPage = pagesMap[defaultPage] ? defaultPage : Number(pageKeys[0]);
 
         setOpenCitation({
-            document_id: ref.document_id ?? ref.documentId ?? ref.id,
+            document_id: ref.document_id ?? '',
             filename: ref.filename,
             pagesMap,
             selectedPage
@@ -112,13 +104,13 @@ const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
                 <Box sx={{ mt: 1, borderTop: '1px solid rgba(0,0,0,0.06)', pt: 1 }}>
                     <Typography variant="caption">Documenti correlati</Typography>
                     <List dense>
-                        {citations.map((ref: any, idx: number) => (
+                        {citations.map((ref, idx: number) => (
                             <React.Fragment key={`${ref.document_id ?? ref.filename ?? idx}-${idx}`}>
                                 <ListItem alignItems="flex-start" secondaryAction={
                                     <Button size="small" onClick={() => openCitationForRef(ref)}>Mostra</Button>
                                 }>
                                     <ListItemText
-                                        primary={`${ref.filename ?? ref.document_id} — pagina ${ref.page_number ?? ref.page ?? ''}`}
+                                        primary={`${ref.filename ?? ref.document_id} — pagina ${ref.page_number ?? ref.page_number ?? ''}`}
                                         secondary={ref.text_quote ?? ''}
                                     />
                                 </ListItem>

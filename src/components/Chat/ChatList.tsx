@@ -44,7 +44,7 @@ export default function ChatList() {
     if (error) return <Alert severity="error">{String(error)}</Alert>;
 
     return (
-        <List sx={{ width: '100%', maxHeight: '80vh', overflow: 'auto' }}>
+        <List sx={{ width: '100%', height: 300, overflow: 'auto' }} >
             {list.length === 0 && (
                 <Typography
                     variant="caption"

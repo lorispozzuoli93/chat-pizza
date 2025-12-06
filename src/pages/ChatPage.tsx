@@ -22,12 +22,12 @@ export default function ChatPage() {
                 </Grid>
 
                 <Grid item xs={12} md={4}>
-                    <Paper sx={{ p: 2, mb: 2, height: 300, overflow: 'auto' }}>
+                    <Paper sx={{ flex: 1, overflow: 'auto', mb: 2 }}>
                         <Typography variant="subtitle1">Conversazioni</Typography>
                         <ChatList />
                     </Paper>
 
-                    <Paper sx={{ p: 2 }}>
+                    <Paper sx={{ p: 2, height: 313, overflow: 'auto' }}>
                         <Typography variant="subtitle1">Documenti</Typography>
                         <DocumentManager compact={true} />
                     </Paper>

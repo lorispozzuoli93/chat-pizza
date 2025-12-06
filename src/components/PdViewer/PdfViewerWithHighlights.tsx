@@ -3,6 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import type { PdfPageType } from '../../types';
 
 // set worker (usa CDN oppure copia locale se preferisci)
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -11,31 +12,27 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 type Props = {
     documentId: string;
     pageNumber?: number;
-    highlights?: number[][]; // array of rects [x_in, y_in, w_in, h_in]
-    fileUrl?: string; // optional override
+    highlights?: number[][];
+    fileUrl?: string;
 };
 
 const PdfViewerWithHighlights: React.FC<Props> = ({ documentId, pageNumber = 1, highlights = [], fileUrl }) => {
     const [pageDims, setPageDims] = useState<{ widthPts: number; heightPts: number } | null>(null);
     const [loading, setLoading] = useState(true);
 
-
     const url = fileUrl ?? `/api/documents/${documentId}/file`;
-
 
     const onDocumentLoadSuccess = useCallback(() => {
         setLoading(false);
     }, []);
 
-
-    const onPageRenderSuccess = useCallback((pdfPage: any) => {
+    const onPageRenderSuccess = useCallback((pdfPage: PdfPageType) => {
         const viewport = pdfPage.getViewport({ scale: 1 });
         setPageDims({ widthPts: viewport.width, heightPts: viewport.height });
     }, []);
 
-
     const rectToStyle = (rectIn: number[]) => {
-        if (!pageDims) return { display: 'none' } as any;
+        if (!pageDims) return { display: 'none' };
         const [xIn, yIn, wIn, hIn] = rectIn;
         const xPts = xIn * 72;
         const yPts = yIn * 72;
@@ -64,7 +61,7 @@ const PdfViewerWithHighlights: React.FC<Props> = ({ documentId, pageNumber = 1, 
     return (
         <Box sx={{ width: '100%', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography variant="subtitle1">Id documento: {documentId} — Pagina {pageNumber}</Typography>
+                <Typography variant="subtitle1">Id documento: {documentId}</Typography>
                 {loading && <CircularProgress size={16} />}
             </Box>
 

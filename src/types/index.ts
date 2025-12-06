@@ -106,3 +106,10 @@ export interface ErrorResponse {
     detail?: string | ValidationErrorDetail[] | Record<string, any>;
     message?: string;
 }
+
+export interface PdfPageType {
+    getViewport: (options: { scale: number }) => {
+        width: number;
+        height: number;
+    };
+}
